@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatTrip</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        #chat-container {
+            height: 500px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #chat-bg {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background-color: #e3f2fd;
+            align-self: flex-end;
+        }
+        
+        .assistant-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        
+        #input-container {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #user-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        .thinking-process {
+            background-color: #fffde7;
+            padding: 10px;
+            border-left: 4px solid #ffd600;
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #555;
+            white-space: pre-wrap;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #save-btn {
+            background-color: #2196F3;
+            margin-top: 10px;
+        }
+        
+        #save-btn:hover {
+            background-color: #0b7dda;
+        }
+        
+        .quick-reply {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 12px;
+            background-color: #e3f2fd;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+        
+        .quick-reply:hover {
+            background-color: #bbdefb;
+        }
+        
+        .hint {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ChatTrip</h1>
+    
+    <div id="chat-container">
+        <div id="chat-bg"></div>
+    </div>
+    
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="我计划和最好的朋友去三亚旅游，正在考虑是否加上海岛游，因此需要收集蜈支洲岛、西岛和分界洲岛的信息，以便做决定。这个阶段不需要做选择，你能提供更多信息吗？" autocomplete="off">
+        <button id="send-button">发送</button>
+    </div>
+    <div id="hint" class="hint">请完整输入"我计划和最好的朋友去三亚旅游，正在考虑是否加上海岛游，因此需要收集蜈支洲岛、西岛和分界洲岛的信息，以便做决定。这个阶段不需要做选择，你能提供更多信息吗？"</div>
+    
+    <button id="save-btn" style="display: none;">保存我的回答</button>
+    
+    <script>
+        // 配置和变量
+        let conversationHistory = [];
+        let targetCity = "";
+        let surveyStep = 1; // 1: 初始 2: 三亚海岛的信息 3: 结束
+        
+        // DOM元素
+        const chatBg = document.getElementById('chat-bg');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const saveButton = document.getElementById('save-btn');
+        const hint = document.getElementById('hint');
+        
+        // 初始化聊天
+        window.onload = function() {
+            addMessage('assistant', 'Hi~我是旅游决策小助手ChatTrip！请问有什么可以帮您？');
+        };
+        
+        // 添加消息到聊天框（流式输出）
+        function addMessage(role, content, showQuickReply = false, callback = null) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(`${role}-message`);
+            chatBg.appendChild(messageElement);
+            
+            // 流式输出文本
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i < content.length) {
+                    messageElement.textContent += content.charAt(i);
+                    i++;
+                    chatBg.scrollTop = chatBg.scrollHeight;
+                } else {
+                    clearInterval(interval);
+                    
+                    if (showQuickReply && role === 'assistant') {
+                        const quickReplyContainer = document.createElement('div');
+                        quickReplyContainer.style.marginTop = '10px';
+                        
+                        const yesButton = document.createElement('span');
+                        yesButton.classList.add('quick-reply');
+                        yesButton.textContent = '是';
+                        yesButton.onclick = function() {
+                            handleQuickReply('是');
+                        };
+                        
+                        const noButton = document.createElement('span');
+                        noButton.classList.add('quick-reply');
+                        noButton.textContent = '否';
+                        noButton.onclick = function() {
+                            handleQuickReply('否');
+                        };
+                        
+                        quickReplyContainer.appendChild(yesButton);
+                        quickReplyContainer.appendChild(noButton);
+                        chatBg.appendChild(quickReplyContainer);
+                    }
+                    
+                    if (callback) callback();
+                }
+            }, 30); // 每个字符间隔30毫秒
+        }
+        
+        // 添加思考过程（流式输出）
+        function addThinkingProcess(content, callback = null) {
+            const thinkingElement = document.createElement('div');
+            thinkingElement.classList.add('thinking-process');
+            chatBg.appendChild(thinkingElement);
+            
+            // 流式输出文本
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i < content.length) {
+                    thinkingElement.textContent += content.charAt(i);
+                    i++;
+                    chatBg.scrollTop = chatBg.scrollHeight;
+                } else {
+                    clearInterval(interval);
+                    if (callback) callback();
+                }
+            }, 30); // 每个字符间隔30毫秒
+        }
+        
+        // 发送消息函数
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            // 添加用户消息
+            addMessage('user', message);
+            userInput.value = '';
+            conversationHistory.push({"role": "user", "content": message});
+            
+            // 检测用户输入是否匹配要求的句子
+            if (message === "我计划和最好的朋友去三亚旅游，正在考虑是否加上海岛游，因此需要收集蜈支洲岛、西岛和分界洲岛的信息，以便做决定。这个阶段不需要做选择，你能提供更多信息吗？") {
+                surveyStep = 2;
+                setTimeout(generateCityRecommendations, 3000);
+            } else {
+                addMessage('assistant', '您的输入不正确，请完整输入："我计划和最好的朋友去三亚旅游，正在考虑是否加上海岛游，因此需要收集蜈支洲岛、西岛和分界洲岛的信息，以便做决定。这个阶段不需要做选择，你能提供更多信息吗？"');
+                hint.style.color = "red";
+                setTimeout(() => {
+                    hint.style.color = "#666";
+                }, 2000);
+            }
+        }
+        
+        // 生成城市推荐的函数（固定输出版本）
+        function generateCityRecommendations() {
+            // 添加思考过程
+            const thinkingText = `▼ 深度思考中：
+
+好的，用户想收集更多关于三亚三个海岛的信息。
+■  分析用户需求：
+        了解蜈支洲岛、西岛和分界洲岛信息、不需要做出选择。
+■  思考信息检索要点：
+        1.提取海岛关键信息。
+        2.注意信息时效性。
+        3.收集游客评价。
+■  获取海岛信息：
+        1.蜈支洲岛：热门、商业化程度高、水上项目丰富；
+        2.西岛：原生态、渔村文化、自然和宁静；
+        3.分界洲岛：小众、海洋剧场等。
+■  整理信息，确保信息准确：每个海岛列出特点、优缺点，并总结适合的游客类型。
+`;
+            
+            // 添加最终结果（在思考过程完成后）
+            addThinkingProcess(thinkingText, function() {
+                setTimeout(() => {
+                    addMessage('assistant', `答案：以下是一些关于三亚海岛的信息：[研究需要未展示具体信息]
+`);
+                    surveyStep = 3;
+                }, 1000); // 添加一个小的延迟，让用户有时间阅读
+            });
+        }
+        
+        // 点击发送按钮
+        sendButton.addEventListener('click', sendMessage);
+        
+        // 回车键发送
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
