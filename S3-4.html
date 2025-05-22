@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatTrip</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        #chat-container {
+            height: 500px;
+            overflow-y: scroll;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        #chat-bg {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+        
+        .message {
+            margin-bottom: 10px;
+            padding: 10px;
+            border-radius: 5px;
+            max-width: 80%;
+        }
+        
+        .user-message {
+            background-color: #e3f2fd;
+            align-self: flex-end;
+        }
+        
+        .assistant-message {
+            background-color: #f1f1f1;
+            align-self: flex-start;
+        }
+        
+        #input-container {
+            display: flex;
+            gap: 10px;
+        }
+        
+        #user-input {
+            flex-grow: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(0,0,0,.3);
+            border-radius: 50%;
+            border-top-color: #000;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        .thinking-process {
+            background-color: #fffde7;
+            padding: 10px;
+            border-left: 4px solid #ffd600;
+            margin: 10px 0;
+            font-size: 0.9em;
+            color: #555;
+            white-space: pre-wrap;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #save-btn {
+            background-color: #2196F3;
+            margin-top: 10px;
+        }
+        
+        #save-btn:hover {
+            background-color: #0b7dda;
+        }
+        
+        .quick-reply {
+            display: inline-block;
+            margin: 5px;
+            padding: 8px 12px;
+            background-color: #e3f2fd;
+            border-radius: 15px;
+            cursor: pointer;
+        }
+        
+        .quick-reply:hover {
+            background-color: #bbdefb;
+        }
+        
+        .hint {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>ChatTrip</h1>
+    
+    <div id="chat-container">
+        <div id="chat-bg"></div>
+    </div>
+    
+    <div id="input-container">
+        <input type="text" id="user-input" placeholder="请输入：我准备和家人去旅游，在酒店和民宿之间选，它们价格相近、评分相似、交通便利、基本设施齐全，但不确定民宿是否合适，我只有50%的信心选择民宿，你有什么建议吗？" autocomplete="off">
+        <button id="send-button">发送</button>
+    </div>
+    <div id="hint" class="hint">请完整输入"我准备和家人去旅游，在酒店和民宿之间选，它们价格相近、评分相似、交通便利、基本设施齐全，但不确定民宿是否合适，我只有50%的信心选择民宿，你有什么建议吗？"</div>
+    
+    <button id="save-btn" style="display: none;">保存我的回答</button>
+    
+    <script>
+        // 配置和变量
+        let conversationHistory = [];
+        let targetCity = "";
+        let surveyStep = 1; // 1: 初始 2: 推荐城市 3: 结束
+        
+        // DOM元素
+        const chatBg = document.getElementById('chat-bg');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const saveButton = document.getElementById('save-btn');
+        const hint = document.getElementById('hint');
+        
+        // 初始化聊天
+        window.onload = function() {
+            addMessage('assistant', 'Hi~我是旅游决策小助手ChatTrip！请问有什么可以帮您？');
+        };
+        
+        // 添加消息到聊天框（流式输出）
+        function addMessage(role, content, showQuickReply = false, callback = null) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(`${role}-message`);
+            chatBg.appendChild(messageElement);
+            
+            // 流式输出文本
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i < content.length) {
+                    messageElement.textContent += content.charAt(i);
+                    i++;
+                    chatBg.scrollTop = chatBg.scrollHeight;
+                } else {
+                    clearInterval(interval);
+                    
+                    if (showQuickReply && role === 'assistant') {
+                        const quickReplyContainer = document.createElement('div');
+                        quickReplyContainer.style.marginTop = '10px';
+                        
+                        const yesButton = document.createElement('span');
+                        yesButton.classList.add('quick-reply');
+                        yesButton.textContent = '是';
+                        yesButton.onclick = function() {
+                            handleQuickReply('是');
+                        };
+                        
+                        const noButton = document.createElement('span');
+                        noButton.classList.add('quick-reply');
+                        noButton.textContent = '否';
+                        noButton.onclick = function() {
+                            handleQuickReply('否');
+                        };
+                        
+                        quickReplyContainer.appendChild(yesButton);
+                        quickReplyContainer.appendChild(noButton);
+                        chatBg.appendChild(quickReplyContainer);
+                    }
+                    
+                    if (callback) callback();
+                }
+            }, 30); // 每个字符间隔30毫秒
+        }
+        
+        // 添加思考过程（流式输出）
+        function addThinkingProcess(content, callback = null) {
+            const thinkingElement = document.createElement('div');
+            thinkingElement.classList.add('thinking-process');
+            chatBg.appendChild(thinkingElement);
+            
+            // 流式输出文本
+            let i = 0;
+            const interval = setInterval(() => {
+                if (i < content.length) {
+                    thinkingElement.textContent += content.charAt(i);
+                    i++;
+                    chatBg.scrollTop = chatBg.scrollHeight;
+                } else {
+                    clearInterval(interval);
+                    if (callback) callback();
+                }
+            }, 30); // 每个字符间隔30毫秒
+        }
+        
+        // 发送消息函数
+        function sendMessage() {
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            // 添加用户消息
+            addMessage('user', message);
+            userInput.value = '';
+            conversationHistory.push({"role": "user", "content": message});
+            
+            // 检测用户输入是否匹配要求的句子
+            if (message === "我准备和家人去旅游，在酒店和民宿之间选，它们价格相近、评分相似、交通便利、基本设施齐全，但不确定民宿是否合适，我只有50%的信心选择民宿，你有什么建议吗？") {
+                surveyStep = 2;
+                setTimeout(generateCityRecommendations, 3000);
+            } else {
+                addMessage('assistant', '您的输入不正确，请完整输入："我准备和家人去旅游，在酒店和民宿之间选，它们价格相近、评分相似、交通便利、基本设施齐全，但不确定民宿是否合适，我只有50%的信心选择民宿，你有什么建议吗？"');
+                hint.style.color = "red";
+                setTimeout(() => {
+                    hint.style.color = "#666";
+                }, 2500);
+            }
+        }
+        
+        // 生成城市推荐的函数（固定输出版本）
+        function generateCityRecommendations() {
+            // 添加思考过程
+            const thinkingText = `▼ 深度思考中：
+            
+好的，为了提供更合理建议，我的思考过程如下：
+■  明确用户需求：
+        用户希望在酒店和民宿之间选择，两者在价格、评分、交通和基本设施等方面相似，但用户不确定选民宿是否是合适的，只有50%的信心选择民宿，希望听取建议，确保没有遗漏关键因素。我需要仔细分析可能影响选择的因素，帮助他们确认选择民宿是否是适合的。
+■  分析影响选择的因素：
+        价格、评分、交通和基本设施已经被充分考虑过，还需要考虑其他因素，如住宿体验、服务、卫生情况等方面的差异，以及用户自身的住宿需求，如较多住宿空间、个性化体验等。
+■  考虑民宿和酒店的不同之处：
+        服务方面，酒店通常提供24小时前台和客房服务，能够迅速响应顾客需求，而民宿的服务时间有限，遇到问题需要联系房东，房东的反应时间可能不如酒店及时；
+        卫生和清洁标准，酒店可能有统一的卫生和清洁标准，民宿因房东而异；
+        设施方面，虽然用户已经提到基本设施，民宿可能还有厨房、客厅等家庭友好型空间，更适合家庭互动；酒店可能有健身房、游泳池等设施；
+        此外，用户只有50%的信心选择民宿，说明两者优势相当，或者可能有未考虑到的因素，如民宿实际卫生情况是否与宣传保持一致、房东沟通是否顺畅、房东是否及时响应。建议用户仔细检查民宿的评论，特别是最近的差评，查看是否有提及卫生、房东沟通等问题。
+■  规划回答结构：明确自身需求，对比酒店和民宿的优劣势，确认是否有被忽视的点，从住宿需求以及评价细节等进一步分析，综合比较再做决定。
+`;
+            
+            // 添加最终结果（在思考过程完成后）
+            addThinkingProcess(thinkingText, function() {
+                setTimeout(() => {
+                    addMessage('assistant', `我将给出以下建议辅助你做出最终决定：选择民宿是合适的，但需先查看评论`);
+                    surveyStep = 3;
+                }, 1000); // 添加一个小的延迟，让用户有时间阅读
+            });
+        }
+        
+        // 点击发送按钮
+        sendButton.addEventListener('click', sendMessage);
+        
+        // 回车键发送
+        userInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
