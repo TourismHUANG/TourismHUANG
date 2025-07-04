@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI助手</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #10a37f;
+            --secondary-color: #343541;
+            --user-message: #10a37f;
+            --assistant-message: #444654;
+            --background: #343541;
+            --input-background: #40414f;
+            --border-color: #555766;
+            --text-color: #ececf1;
+            --accent-color: #ffd166;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: var(--background);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        header {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            background-color: var(--secondary-color);
+        }
+        
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .logo-icon {
+            font-size: 24px;
+            color: var(--primary-color);
+        }
+        
+        h1 {
+            font-size: 1.4rem;
+            font-weight: 600;
+        }
+        
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .welcome-container {
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+            padding: 30px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .welcome-title {
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            color: var(--text-color);
+        }
+        
+        .welcome-text {
+            color: #aaa;
+            margin-bottom: 30px;
+            max-width: 600px;
+            line-height: 1.6;
+        }
+        
+        .message {
+            display: flex;
+            gap: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+            padding: 20px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        
+        .user-avatar {
+            background-color: var(--user-message);
+        }
+        
+        .assistant-avatar {
+            background-color: var(--assistant-message);
+        }
+        
+        .message-content {
+            flex: 1;
+            padding-top: 5px;
+            line-height: 1.4;
+        }
+        
+        .message-content p {
+            margin-bottom: 10px;
+        }
+        
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background-color: var(--secondary-color);
+        }
+        
+        .input-area {
+            max-width: 800px;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        #user-input {
+            width: 100%;
+            padding: 15px 60px 15px 20px;
+            background-color: var(--input-background);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 1rem;
+            outline: none;
+            resize: none;
+            height: 60px;
+            line-height: 1.5;
+        }
+        
+        #user-input:focus {
+            border-color: var(--primary-color);
+        }
+        
+        #send-button {
+            position: absolute;
+            right: 15px;
+            bottom: 15px;
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.2rem;
+            cursor: pointer;
+            opacity: 0.7;
+            transition: all 0.3s;
+        }
+        
+        #send-button:hover {
+            opacity: 1;
+            color: var(--primary-color);
+        }
+        
+        #send-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .hint-area {
+            max-width: 800px;
+            margin: 15px auto 0;
+            padding: 12px 15px;
+            background-color: rgba(16, 163, 127, 0.15);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .hint-area i {
+            color: var(--primary-color);
+            margin-top: 3px;
+        }
+        
+        .hint-text {
+            flex: 1;
+        }
+        
+        .hint-command {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin-top: 8px;
+            display: inline-block;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .hint-command:hover {
+            background-color: rgba(16, 163, 127, 0.3);
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .step {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #555;
+        }
+        
+        .step.active {
+            background-color: var(--primary-color);
+        }
+        
+        .response-list {
+            padding-left: 20px;
+            margin: 10px 0;
+        }
+        
+        .response-list li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        .code-block {
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            margin: 15px 0;
+            white-space: pre-wrap;
+            line-height: 1.4;
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            align-items: center;
+            background-color: rgba(255,255,255,0.1);
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            margin-top: 5px;
+        }
+        
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background-color: var(--text-color);
+            border-radius: 50%;
+            margin: 0 2px;
+            animation: typing-dot 1.5s infinite ease-in-out;
+        }
+        
+        .typing-dot:nth-child(1) {
+            animation-delay: 0s;
+        }
+        
+        .typing-dot:nth-child(2) {
+            animation-delay: 0.3s;
+        }
+        
+        .typing-dot:nth-child(3) {
+            animation-delay: 0.6s;
+        }
+        
+        @keyframes typing-dot {
+            0%, 100% { transform: translateY(0); opacity: 0.7; }
+            50% { transform: translateY(-5px); opacity: 1; }
+        }
+        
+        .typewriter-text {
+            display: inline-block;
+            overflow: hidden;
+            white-space: pre-wrap;
+        }
+        
+        @media (max-width: 768px) {
+            .message {
+                gap: 15px;
+                padding: 15px 0;
+            }
+            
+            .avatar {
+                width: 32px;
+                height: 32px;
+            }
+            
+            .chat-container {
+                padding: 15px;
+            }
+            
+            .input-container {
+                padding: 15px;
+            }
+            
+            .welcome-container {
+                padding: 20px 15px;
+            }
+            
+            .welcome-title {
+                font-size: 1.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <div class="logo-icon">
+                <i class="fas fa-robot"></i>
+            </div>
+            <h1>AI助手</h1>
+        </div>
+    </header>
+    
+    <div class="chat-container" id="chat-container">
+        <div class="welcome-container">
+            <h2 class="welcome-title">欢迎使用AI助手</h2>
+                    </div>
+    </div>
+    
+    <div class="input-container">
+        <div class="input-area">
+            <textarea id="user-input" placeholder="输入您的问题..." autocomplete="off"></textarea>
+            <button id="send-button">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+        
+        <div class="step-indicator">
+            <div class="step active" id="step1"></div>
+            <div class="step" id="step2"></div>
+        </div>
+        
+        <div class="hint-area" id="hint-area">
+            <i class="fas fa-lightbulb"></i>
+            <div class="hint-text">
+                您可以尝试提问: <span class="hint-command" id="hint-command">我是餐厅员工，我刚刚遇到了一位顾客，他皱着眉头抱怨怎么还没上菜，接下来我应该怎么做呢，你能帮帮我吗?</span>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // DOM元素
+        const chatContainer = document.getElementById('chat-container');
+        const userInput = document.getElementById('user-input');
+        const sendButton = document.getElementById('send-button');
+        const hintArea = document.getElementById('hint-area');
+        const hintCommand = document.getElementById('hint-command');
+        const steps = document.querySelectorAll('.step');
+        const welcomeContainer = document.querySelector('.welcome-container');
+        
+        // 状态管理
+        let conversationStep = 1;
+        let isGenerating = false;
+        
+        // 添加消息到聊天框
+        function addMessage(role, content) {
+            // 移除欢迎容器（如果有）
+            if (welcomeContainer) {
+                welcomeContainer.remove();
+            }
+            
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const avatar = document.createElement('div');
+            avatar.classList.add('avatar');
+            
+            if (role === 'user') {
+                avatar.classList.add('user-avatar');
+                avatar.innerHTML = '<i class="fas fa-user"></i>';
+            } else {
+                avatar.classList.add('assistant-avatar');
+                avatar.innerHTML = '<i class="fas fa-robot"></i>';
+            }
+            
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            
+            // 处理内容中的换行
+            const contentWithBreaks = content.replace(/\n/g, '<br>');
+            messageContent.innerHTML = contentWithBreaks;
+            
+            messageElement.appendChild(avatar);
+            messageElement.appendChild(messageContent);
+            
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        // 添加AI消息（打字机效果）
+        function addAssistantMessageWithTypewriter(content) {
+            // 移除欢迎容器（如果有）
+            if (welcomeContainer) {
+                welcomeContainer.remove();
+            }
+            
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            
+            const avatar = document.createElement('div');
+            avatar.classList.add('avatar', 'assistant-avatar');
+            avatar.innerHTML = '<i class="fas fa-robot"></i>';
+            
+            const messageContent = document.createElement('div');
+            messageContent.classList.add('message-content');
+            
+            // 添加打字效果指示器
+            const typingIndicator = document.createElement('div');
+            typingIndicator.classList.add('typing-indicator');
+            typingIndicator.innerHTML = `
+                <span>正在思考</span>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+            
+            messageContent.appendChild(typingIndicator);
+            
+            messageElement.appendChild(avatar);
+            messageElement.appendChild(messageContent);
+            
+            chatContainer.appendChild(messageElement);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // 模拟AI思考时间
+            setTimeout(() => {
+                typingIndicator.remove();
+                
+                // 创建打字机效果容器
+                const typewriterContainer = document.createElement('div');
+                typewriterContainer.classList.add('typewriter-text');
+                messageContent.appendChild(typewriterContainer);
+                
+                // 打字机效果函数
+                function typeWriter(text, element, speed, callback) {
+                    let i = 0;
+                    element.innerHTML = '';
+                    
+                    function type() {
+                        if (i < text.length) {
+                            // 处理换行符
+                            if (text.charAt(i) === '\n') {
+                                element.innerHTML += '<br>';
+                            } else {
+                                element.innerHTML += text.charAt(i);
+                            }
+                            i++;
+                            setTimeout(type, speed);
+                        } else {
+                            if (callback) callback();
+                        }
+                    }
+                    
+                    type();
+                }
+                
+                // 开始打字效果
+                typeWriter(content, typewriterContainer, 20, () => {
+                    // 启用发送按钮
+                    sendButton.disabled = false;
+                    isGenerating = false;
+                });
+            }, 1000); // 模拟AI思考时间
+        }
+        
+        // 更新步骤指示器
+        function updateSteps() {
+            steps.forEach((step, index) => {
+                if (index < conversationStep) {
+                    step.classList.add('active');
+                } else {
+                    step.classList.remove('active');
+                }
+            });
+        }
+        
+        // 发送消息函数
+        function sendMessage() {
+            if (isGenerating) return;
+            
+            const message = userInput.value.trim();
+            if (!message) return;
+            
+            // 添加用户消息
+            addMessage('user', message);
+            userInput.value = '';
+            
+            // 禁用发送按钮
+            sendButton.disabled = true;
+            isGenerating = true;
+            
+            // 检测用户输入是否匹配要求的句子
+            if (conversationStep === 1 && 
+                message === "我是餐厅员工，我刚刚遇到了一位顾客，他皱着眉头抱怨怎么还没上菜，接下来我应该怎么做呢，你能帮帮我吗?") {
+                conversationStep = 2;
+                updateSteps();
+                
+                // 更新提示信息
+                hintArea.innerHTML = `
+                    <i class="fas fa-info-circle"></i>
+                    <div class="hint-text">
+                        请完整输入: <span class="hint-command">我明白了。我将尝试再次与顾客沟通，试图找到一个令人满意的解决方案，并在必要时上报管理层。</span>
+                    </div>
+                `;
+                
+                // AI回复（使用打字机效果）
+                const aiResponse = `嘿朋友，我明白这可能会让你感到沮丧。别太担心，让我们一起来处理这件事：
+
+① 冷静应对：不要让顾客的不满情绪影响到你的情绪，保持专业和礼貌。
+② 道歉并表达理解：向顾客致以诚挚的道歉，表示抱歉他们的等待时间超过了预期，并理解他们的不满。
+③ 主动解决问题：询问顾客是否有其他需要，比如提供餐前小食或饮品，以缓解他们的等待。并及时与厨房沟通，了解订单状态。
+④ 提供解决方案：如果顾客依然感到不满，尝试提供一些解决方案，比如提供折扣、免费甜品或者下次光临时的优惠。这展示出你对问题的负责并愿意弥补。
+⑤ 寻求上级支持：如果问题仍然无法解决，寻求上级或经理支持。
+⑥ 记录事件：为了提高未来服务质量，将这次经历记录下来，包括顾客的抱怨内容、你的回应以及最终解决方案。
+
+最重要的是，你不是一个人在面对这个问题。记住，我一直支持你。`;
+                
+                addAssistantMessageWithTypewriter(aiResponse);
+            } 
+            else if (conversationStep === 2 && 
+                     message === "我明白了。我将尝试再次与顾客沟通，试图找到一个令人满意的解决方案，并在必要时上报管理层。") {
+                // AI回复（使用打字机效果）
+                const aiResponse = `希望这些建议能帮到你！如果还有其他需要，随时告诉我，我会一直陪伴着你的。`;
+                
+                addAssistantMessageWithTypewriter(aiResponse);
+                
+                // 更新提示信息
+                hintArea.innerHTML = `
+                    <i class="fas fa-lightbulb"></i>
+                    <div class="hint-text">
+                        您可以继续提问其他服务相关问题，例如：<span class="hint-command">顾客对菜品质量不满意时该如何处理？</span>
+                    </div>
+                `;
+            } 
+            else {
+                if (conversationStep === 1) {
+                    hintArea.innerHTML = `
+                        <i class="fas fa-exclamation-triangle" style="color:#ff6b6b"></i>
+                        <div class="hint-text">
+                            请完整输入: <span class="hint-command">我是餐厅员工，我刚刚遇到了一位顾客，他皱着眉头抱怨怎么还没上菜，接下来我应该怎么做呢，你能帮帮我吗？</span>
+                        </div>
+                    `;
+                } else if (conversationStep === 2) {
+                    hintArea.innerHTML = `
+                        <i class="fas fa-exclamation-triangle" style="color:#ff6b6b"></i>
+                        <div class="hint-text">
+                            请完整输入: <span class="hint-command">我明白了。我将尝试再次与顾客沟通，试图找到一个可以让他满意的解决方案，并在必要时上报管理层。</span>
+                        </div>
+                    `;
+                }
+                
+                // 添加通用AI回复（使用打字机效果）
+                addAssistantMessageWithTypewriter(`我理解您的问题，但为了获得最佳帮助，请按照提示输入完整的问题内容。`);
+            }
+        }
+        
+        // 点击发送按钮
+        sendButton.addEventListener('click', sendMessage);
+        
+        // 回车键发送（支持Shift+Enter换行）
+        userInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey && !isGenerating) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        
+        // 自动调整输入框高度
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight > 200 ? 200 : this.scrollHeight) + 'px';
+        });
+        
+        // 点击提示命令填充输入框
+        hintCommand.addEventListener('click', function() {
+            userInput.value = hintCommand.textContent;
+            userInput.focus();
+            userInput.style.height = 'auto';
+            userInput.style.height = (userInput.scrollHeight > 200 ? 200 : userInput.scrollHeight) + 'px';
+        });
+        
+        // 动态更新提示命令
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('hint-command')) {
+                userInput.value = e.target.textContent;
+                userInput.focus();
+                userInput.style.height = 'auto';
+                userInput.style.height = (userInput.scrollHeight > 200 ? 200 : userInput.scrollHeight) + 'px';
+            }
+        });
+    </script>
+</body>
+</html>
