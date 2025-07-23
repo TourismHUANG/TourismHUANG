@@ -1,7 +1,7 @@
 ## Hi there 👋
 
 <!--
-**TourismHUANG/TourismHUANG** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+**TourismAI/TourismAI** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
 
 Here are some ideas to get you started:
 
